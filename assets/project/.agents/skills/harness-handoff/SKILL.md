@@ -38,6 +38,16 @@ Completed, verified work belongs in atomic commits with messages that say what a
 the repository's commit conventions and the user's instructions about committing; if you have no
 standing permission, show the proposed commits and ask. Never bypass hooks.
 
+If the environment blocks committing (agent sandboxes often protect `.git`, and in a worktree the
+index lives under the main checkout's `.git/worktrees/`), do not work around the protection:
+
+- Leave the work uncommitted and record the exact error under "Blockers" in `handoff.md`.
+- Give the human the exact commands to run outside the sandbox: the files to add and the commit
+  message.
+- Make the next action "commit, then rerun `python3 scripts/harness/feature.py verify <ID>` for
+  each item", because evidence recorded on a dirty tree is not bound to a commit
+  (`working_tree_dirty: true`).
+
 ## 4. Record
 
 Append a session entry at the top of "Sessions" in `.harness/tasks/<TASK-ID>/progress.md`: items
@@ -65,7 +75,8 @@ For a teammate or another machine to continue:
 
 ## 7. Close (`--close`)
 
-When every item passes and the evaluator returned PASS:
+When every item passes, the work is committed, every item's latest evidence was recorded on a
+clean tree (`working_tree_dirty: false`), and the evaluator returned PASS:
 
 - Promote durable knowledge: decisions to `docs/decisions/` (template `harness/templates/adr.md`),
   behavior or architecture changes to `docs/`, regression checks into the test suite.

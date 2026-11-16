@@ -79,6 +79,12 @@ Guidelines:
   form, for example `pnpm vitest run --project unit <file>`, and check that it fails when the file is
   missing (rename the file and run the command). `feature.py verify` rejects a run that executes
   zero tests, but it cannot detect a filter that runs the wrong tests.
+- **A filter that matches nothing can still report a pass.** The Node test runner (`node --test`,
+  `tsx --test`) runs each file in its own process by default and counts the file as one test, so
+  `--test-name-pattern "<name>"` that matches no test prints `tests 1`, `pass 1` and exits 0. Run
+  name-filtered commands with `--test-isolation=none` (`--experimental-test-isolation=none` on
+  older Node versions), which makes an unmatched pattern report `tests 0`. In general, before
+  trusting a filtered command, run it with a name that does not exist: it must fail.
 - `verification` is a promise: once work starts, changing it needs the human's agreement and a
   line in `progress.md` explaining why. Change it with `feature.py set-verify <ID> --verify "..."
   --reason "..."`, which works at any WIP level and keeps the old command in the history.
