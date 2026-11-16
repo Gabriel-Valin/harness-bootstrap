@@ -48,10 +48,18 @@ variant in `docs/RELIABILITY.md` for faster local loops.
   background with a health check (`curl -fsS localhost:PORT/health`) and then stopped, a build of
   a desktop or mobile app. Keep it under a minute. If starting the app needs services (database,
   queue), say so in `docs/RELIABILITY.md` and reuse the repo's own compose file.
-- **E2E** drives a user flow: Playwright, Cypress, Detox, Maestro, an HTTP scenario script, a CLI
-  golden-output test. Look for `e2e/`, `tests/e2e`, `playwright.config.*`, `cypress.config.*`.
-  If none exists, leave `HARNESS_E2E_CMDS` empty, add `TODO(confirm)` in the report, and suggest
-  that the first task in this repo be "add a minimal E2E smoke flow".
+- **E2E** drives a user flow through the deployed shape of the system, from outside the process:
+  Playwright, Cypress, Detox, Maestro, an HTTP scenario script against the started server, a CLI
+  golden-output test against the built binary. Look for `e2e/`, `tests/e2e`,
+  `playwright.config.*`, `cypress.config.*`.
+  - **Do not relabel existing tests as E2E.** Integration tests that already run in the test layer
+    (for example API tests that start the app in-process, or call handlers with a test database)
+    are tests, not E2E, even when they speak HTTP. Putting the same command in both layers makes
+    `verify.sh` report a layer as proven that adds no evidence, which is exactly what the harness
+    exists to prevent.
+  - If no real E2E exists, leave `HARNESS_E2E_CMDS` empty, add `TODO(confirm)` in the report, and
+    suggest that the first task in this repo be "add a minimal E2E flow". An empty layer is
+    reported honestly as not configured; a duplicated one lies.
 
 ## Architecture boundaries
 

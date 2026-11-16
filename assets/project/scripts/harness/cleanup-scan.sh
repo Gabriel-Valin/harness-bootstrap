@@ -22,17 +22,22 @@ if [ -n "$base" ]; then
 fi
 echo "=== Cleanup scan (base: ${base:-none}) ==="
 
+# The harness-bootstrap skill may be installed into the repo itself (npx skills add without -g).
+# Its files are vendored templates that quote debug patterns on purpose, and whether to keep them
+# is a one-time decision reported by the bootstrap, so the scans leave them out.
+VENDORED=(':(exclude,glob)**/skills/harness-bootstrap/**' ':(exclude,glob)**/skills/harness-bootstrap')
+
 # Added lines as "file:line: text", comparing the working tree with the merge base.
 added_lines() {
   if [ -z "${merge_base:-}" ]; then
     return
   fi
-  git diff -U0 --no-color "$merge_base" -- . ':(exclude).harness' 2>/dev/null | awk '
+  git diff -U0 --no-color "$merge_base" -- . ':(exclude).harness' "${VENDORED[@]}" 2>/dev/null | awk '
     /^\+\+\+ /   { file = substr($0, 7); next }
     /^@@ /       { split($3, a, ","); line = substr(a[1], 2) + 0; next }
     /^\+/        { print file ":" line ": " substr($0, 2); line++ }
   '
-  git ls-files --others --exclude-standard -z -- . ':(exclude).harness' 2>/dev/null |
+  git ls-files --others --exclude-standard -z -- . ':(exclude).harness' "${VENDORED[@]}" 2>/dev/null |
     while IFS= read -r -d '' file; do
       awk -v file="$file" '{ print file ":" NR ": " $0 }' "$file"
     done
@@ -90,7 +95,13 @@ fi
 
 echo ""
 echo "[3/5] Stray untracked files"
-stray="$(git ls-files --others --exclude-standard)"
+stray="$(git ls-files --others --exclude-standard -- . "${VENDORED[@]}")"
+vendored="$(git ls-files --others --exclude-standard -- ':(glob)**/skills/harness-bootstrap' \
+  ':(glob)**/skills/harness-bootstrap/**' 2>/dev/null | head -n 1)"
+if [ -n "$vendored" ]; then
+  echo "  INFO       the harness-bootstrap skill is installed in this repo but not committed;"
+  echo "             commit it to let teammates re-run the bootstrap, or remove it (not counted)."
+fi
 if [ -n "$stray" ]; then
   printf '%s\n' "$stray" | sed 's/^/  UNTRACKED  /'
   echo "  FIX: commit what belongs to the change, delete temporary files, gitignore generated ones."
