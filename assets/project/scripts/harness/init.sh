@@ -91,8 +91,13 @@ mkdir -p .harness
 task="$(harness_task_id)"
 if [ -n "$task" ]; then
   # status already explains a broken seal; validate would only repeat it.
+  # A broken seal or invalid evidence makes init fail, so nobody builds on untrusted state.
   if python3 scripts/harness/feature.py status; then
-    python3 scripts/harness/feature.py validate || true
+    if ! python3 scripts/harness/feature.py validate; then
+      [ "$rc" -ne 0 ] || rc=1
+    fi
+  else
+    [ "$rc" -ne 0 ] || rc=1
   fi
   if [ -f ".harness/tasks/$task/handoff.md" ]; then
     echo ""

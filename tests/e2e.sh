@@ -87,6 +87,29 @@ if (cd "$repo" && bash scripts/harness/init.sh >"$WORK/drift.log" 2>&1); then
 fi
 grep -q "DRIFT    .windsurf/skills/harness-start" "$WORK/drift.log" || fail "drift not reported"
 
+echo "== a denied write fails loudly instead of reporting success"
+repo="$(new_repo protected)"
+mkdir -p "$repo/.agents"
+chmod 555 "$repo/.agents"
+if bash "$SKILL_DIR/scripts/install.sh" "$repo" >"$WORK/protected.log" 2>&1; then
+  chmod 755 "$repo/.agents"
+  fail "install.sh exited 0 although .agents/ was not writable"
+fi
+chmod 755 "$repo/.agents"
+grep -q "FAILED   .agents/skills/harness-start/SKILL.md" "$WORK/protected.log" || fail "denied write not reported"
+if grep -q "CREATED  .agents/" "$WORK/protected.log"; then
+  fail "a denied write was reported as CREATED"
+fi
+
+echo "== real unittest output counts as passing tests"
+repo="$(new_repo unittest)"
+mkdir -p "$repo/tests"
+printf 'import unittest\n\n\nclass T(unittest.TestCase):\n    def test_ok(self):\n        self.assertTrue(True)\n' \
+  >"$repo/tests/test_ok.py"
+(cd "$repo" && python3 -m unittest discover -s tests 2>&1) \
+  | python3 "$SKILL_DIR/assets/project/scripts/harness/feature.py" check-log --require-tests - >/dev/null \
+  || fail "a passing unittest run was not recognized"
+
 echo "== bad input is rejected"
 if bash "$SKILL_DIR/scripts/install.sh" "$repo" --agents not-an-agent >/dev/null 2>&1; then
   fail "unknown agent accepted"

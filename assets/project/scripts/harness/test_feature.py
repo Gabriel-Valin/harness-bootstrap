@@ -34,6 +34,23 @@ class ProofGapTest(unittest.TestCase):
             with self.subTest(text=text):
                 self.assertEqual(self.gap(text), "skipped some tests")
 
+    def test_unittest_skips_and_expected_failures_are_gaps(self):
+        for text in [
+            "Ran 3 tests in 0.001s\n\nOK (skipped=1)",
+            "Ran 3 tests in 0.001s\n\nOK (expected failures=1)",
+            "Ran 3 tests in 0.001s\n\nOK (skipped=2, expected failures=1)",
+        ]:
+            with self.subTest(text=text):
+                self.assertEqual(self.gap(text), "skipped some tests")
+
+    def test_unittest_success_counts_as_passing_tests(self):
+        self.assertIsNone(self.gap("Ran 2 tests in 0.003s\n\nOK", require_positive=True))
+        self.assertIsNone(self.gap("....\nRan 4 tests in 0.1s\n\nOK\n", require_positive=True))
+        self.assertEqual(
+            self.gap("Ran 2 tests in 0.003s\n\nFAILED (failures=1)", require_positive=True),
+            "reports no passing tests",
+        )
+
     def test_zero_test_runs_are_gaps(self):
         for text in [
             "No test files found, exiting with code 0",

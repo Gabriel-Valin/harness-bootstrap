@@ -93,6 +93,13 @@ ADAPTERS="$SKILL_DIR/assets/adapters"
 created=0
 linked=0
 skipped=0
+failed=0
+
+# fail_write PATH: count and report a path that could not be written.
+fail_write() {
+  echo "FAILED   $1 (could not write; see the error above)"
+  failed=$((failed + 1))
+}
 
 # copy_tree SRC: copy every file under SRC to the same relative path in the target.
 # Process substitution keeps the counters in this shell instead of a pipe subshell.
@@ -106,15 +113,17 @@ copy_tree() {
       skipped=$((skipped + 1))
       continue
     fi
-    echo "CREATED  $rel"
-    created=$((created + 1))
     if [ "$DRY_RUN" -eq 0 ]; then
-      mkdir -p "$(dirname "$dest")"
-      cp "$file" "$dest"
+      if ! { mkdir -p "$(dirname "$dest")" && cp "$file" "$dest"; }; then
+        fail_write "$rel"
+        continue
+      fi
       case "$rel" in
         *.sh|*.py) chmod +x "$dest" ;;
       esac
     fi
+    echo "CREATED  $rel"
+    created=$((created + 1))
   done < <(find "$src" -type f -not -path '*/__pycache__/*' -not -name '.DS_Store' -print0 | sort -z)
 }
 
@@ -130,20 +139,20 @@ mirror_skills() {
       continue
     fi
     if [ "$COPY" -eq 1 ]; then
+      if [ "$DRY_RUN" -eq 0 ] && ! { mkdir -p "$TARGET/$dir" && cp -R "$skill" "$dest"; }; then
+        fail_write "$dir/$name"
+        continue
+      fi
       echo "CREATED  $dir/$name (copy of .agents/skills/$name)"
       created=$((created + 1))
-      if [ "$DRY_RUN" -eq 0 ]; then
-        mkdir -p "$TARGET/$dir"
-        cp -R "$skill" "$dest"
-      fi
     else
       # Every mirror dir is two levels deep, so the link climbs two levels to the repo root.
+      if [ "$DRY_RUN" -eq 0 ] && ! { mkdir -p "$TARGET/$dir" && ln -s "../../.agents/skills/$name" "$dest"; }; then
+        fail_write "$dir/$name"
+        continue
+      fi
       echo "LINKED   $dir/$name -> ../../.agents/skills/$name"
       linked=$((linked + 1))
-      if [ "$DRY_RUN" -eq 0 ]; then
-        mkdir -p "$TARGET/$dir"
-        ln -s "../../.agents/skills/$name" "$dest"
-      fi
     fi
   done
 }
@@ -164,6 +173,13 @@ echo ""
 summary="$created file(s) created, $linked link(s), $skipped skipped"
 if [ "$DRY_RUN" -eq 1 ]; then
   echo "Dry run: $summary would result. Nothing was written."
+elif [ "$failed" -gt 0 ]; then
+  echo "ERROR: $failed path(s) could not be written ($summary)." >&2
+  echo "WHY:   something denied the write. Agent sandboxes often protect folders such as .agents/," >&2
+  echo "       .claude/ or .codex/ even inside the workspace." >&2
+  echo "FIX:   rerun this command with the permission your agent needs for those folders, or ask the" >&2
+  echo "       user to run it. Do not move the skills elsewhere: agents only discover them there." >&2
+  exit 1
 else
   echo "Done: $summary."
 fi

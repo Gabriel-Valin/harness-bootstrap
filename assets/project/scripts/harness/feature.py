@@ -59,14 +59,16 @@ SKIPPED_RE = re.compile(
     r"^\s*(?:Tests|Test Files)\s+(?:\d+ \w+ \| )*[1-9]\d* (?:skipped|todo) \(\d+\)"
     r"|^Tests?:\s+(?:\d+ \w+, )*[1-9]\d* (?:skipped|todo)\b"
     r"|^=+ (?:\d+ \w+, )*[1-9]\d* skipped(?:, \d+ \w+)* in [\d.]+s =+$"
-    r"|^\s+[1-9]\d* (?:skipped|todo)$",
+    r"|^\s+[1-9]\d* (?:skipped|todo)$"
+    r"|^OK \([^\n]*\b(?:skipped|expected failures)=[1-9]\d*[^\n]*\)$",
     re.IGNORECASE | re.MULTILINE,
 )
 POSITIVE_RE = re.compile(
     r"^\s*Tests\s+(?:\d+ \w+ \| )*\d+ passed\b"
     r"|^Tests?:\s+(?:\d+ \w+, )*\d+ passed\b"
     r"|^=+ .*\b\d+ passed\b"
-    r"|^\s+\d+ passed \(",
+    r"|^\s+\d+ passed \("
+    r"|^Ran [1-9]\d* tests? in [^\n]+\n\s*\nOK\b",
     re.IGNORECASE | re.MULTILINE,
 )
 

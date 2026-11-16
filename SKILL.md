@@ -117,6 +117,12 @@ marks scripts executable, and prints `CREATED` / `LINKED` / `SKIPPED` per path. 
 first if the repo already has harness pieces. For every `SKIPPED` path, read the existing file and
 merge the missing ideas into it by hand instead of forcing the template.
 
+If the script reports `FAILED` paths, your agent's sandbox probably protects a folder such as
+`.agents/` or `.claude/` (Codex does this for `.agents/` by default). Rerun the same command with
+the permission your environment offers for it, or ask the user to run it. Never relocate the
+skills to another folder to get around it: agents discover skills only in the folders they read,
+so relocated skills silently stop working.
+
 ### 6. Fill in the project specifics
 
 Everything the scaffold cannot know is yours to write, grounded in what you read in steps 2-4:
