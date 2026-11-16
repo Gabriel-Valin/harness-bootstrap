@@ -78,8 +78,9 @@ PY
 echo "== copied mirrors report drift"
 repo="$(new_repo copied)"
 bash "$SKILL_DIR/scripts/install.sh" "$repo" --agents windsurf --copy >/dev/null
-[ -d "$repo/.windsurf/skills/harness-start" ] && [ ! -L "$repo/.windsurf/skills/harness-start" ] \
-  || fail "--copy did not create a plain directory"
+if [ ! -d "$repo/.windsurf/skills/harness-start" ] || [ -L "$repo/.windsurf/skills/harness-start" ]; then
+  fail "--copy did not create a plain directory"
+fi
 echo "drift" >>"$repo/.windsurf/skills/harness-start/SKILL.md"
 if (cd "$repo" && bash scripts/harness/init.sh >"$WORK/drift.log" 2>&1); then
   fail "init passed with a drifted mirror"
