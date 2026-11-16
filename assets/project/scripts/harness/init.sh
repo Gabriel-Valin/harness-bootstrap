@@ -19,7 +19,9 @@ for f in harness/config.sh harness/architecture-rules.json harness/clean-state-c
          harness/evaluator-rubric.md harness/templates/feature_list.json \
          harness/templates/handoff.md harness/templates/progress.md harness/templates/contract.md \
          scripts/harness/verify.sh scripts/harness/feature.py scripts/harness/check_architecture.py \
-         scripts/harness/cleanup-scan.sh; do
+         scripts/harness/cleanup-scan.sh .agents/skills/harness-start/SKILL.md \
+         .agents/skills/harness-handoff/SKILL.md .agents/skills/harness-cleanup/SKILL.md \
+         .agents/skills/harness-evaluate/SKILL.md; do
   if [ -f "$f" ]; then
     echo "  OK       $f"
   else
@@ -30,6 +32,35 @@ done
 if [ "$missing" -eq 1 ]; then
   echo "ERROR: harness files are missing."
   echo "FIX:   restore them from the base branch (git checkout <base> -- <file>) or rerun harness-bootstrap."
+  exit 1
+fi
+
+# Agents that do not read .agents/skills/ get mirrors (symlinks or copies). A mirror that broke
+# or drifted would give that agent different instructions than everyone else.
+for dir in .claude/skills .devin/skills .windsurf/skills .kiro/skills; do
+  # Name the lifecycle skills explicitly: .agents/skills/ may also hold other skills, such as
+  # harness-bootstrap itself when it was installed per project.
+  for name in harness-start harness-handoff harness-cleanup harness-evaluate; do
+    canonical=".agents/skills/$name/"
+    mirror="$dir/$name"
+    if [ -L "$mirror" ] && [ ! -e "$mirror" ]; then
+      echo "  BROKEN   $mirror (symlink target is missing)"
+      echo "  FIX:     recreate it: ln -sfn ../../.agents/skills/$name $mirror"
+      missing=1
+    elif [ -f "$mirror" ]; then
+      echo "  BROKEN   $mirror (a symlink checked out as a plain file)"
+      echo "  FIX:     enable symlinks (git config core.symlinks true, then check the path out again),"
+      echo "           or replace it with a copy: rm $mirror && cp -R .agents/skills/$name $mirror"
+      missing=1
+    elif [ -d "$mirror" ] && [ ! -L "$mirror" ] && ! diff -rq "$canonical" "$mirror" >/dev/null 2>&1; then
+      echo "  DRIFT    $mirror differs from .agents/skills/$name"
+      echo "  FIX:     edit .agents/skills/$name only, then copy it over: rm -r $mirror && cp -R .agents/skills/$name $mirror"
+      missing=1
+    fi
+  done
+done
+if [ "$missing" -eq 1 ]; then
+  echo "ERROR: some agents would read missing or outdated harness skills."
   exit 1
 fi
 
@@ -59,14 +90,21 @@ echo "[4/4] Task state"
 mkdir -p .harness
 task="$(harness_task_id)"
 if [ -n "$task" ]; then
-  python3 scripts/harness/feature.py status
-  python3 scripts/harness/feature.py validate || true
+  # status already explains a broken seal; validate would only repeat it.
+  # A broken seal or invalid evidence makes init fail, so nobody builds on untrusted state.
+  if python3 scripts/harness/feature.py status; then
+    if ! python3 scripts/harness/feature.py validate; then
+      [ "$rc" -ne 0 ] || rc=1
+    fi
+  else
+    [ "$rc" -ne 0 ] || rc=1
+  fi
   if [ -f ".harness/tasks/$task/handoff.md" ]; then
     echo ""
     echo "Read next: .harness/tasks/$task/handoff.md"
   fi
 else
-  echo "  No active task in this worktree. Start one with /harness-start <TASK-ID>"
+  echo "  No active task in this worktree. Start one with the harness-start skill"
   echo "  (or: python3 scripts/harness/feature.py init <TASK-ID> --title \"...\")."
 fi
 

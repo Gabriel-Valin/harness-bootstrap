@@ -1,6 +1,6 @@
 # Evaluator rubric
 
-Used by the `harness-evaluator` subagent and by human reviewers. Score every dimension from
+Used by the `harness-evaluate` skill and by human reviewers. Score every dimension from
 evidence you observed (a command you ran, a line you read), never from the author's summary.
 
 ## Scale

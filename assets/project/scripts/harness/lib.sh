@@ -2,6 +2,7 @@
 # lib.sh - shared helpers for the harness scripts. Source it; do not execute it.
 
 HARNESS_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+# shellcheck disable=SC2034 # read by the scripts that source this file
 HARNESS_SCRIPTS="$HARNESS_ROOT/scripts/harness"
 HARNESS_STATE="$HARNESS_ROOT/.harness"
 

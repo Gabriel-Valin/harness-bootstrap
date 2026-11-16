@@ -7,7 +7,8 @@ Work here goes through the harness. Details: `harness/README.md`.
 
 **Start of every session**
 1. `bash scripts/harness/init.sh` (setup, quick verification, current task state)
-2. No task yet: `/harness-start <TASK-ID>`. Resuming: read `.harness/tasks/<TASK-ID>/handoff.md`.
+2. No task yet: use the `harness-start` skill with the task id. Resuming: read
+   `.harness/tasks/<TASK-ID>/handoff.md`.
 3. `python3 scripts/harness/feature.py next`, then `start <ID>`
 
 **Rules**
@@ -18,9 +19,14 @@ Work here goes through the harness. Details: `harness/README.md`.
   changes) **and** `harness/clean-state-checklist.md` holds.
 - Stay inside `.harness/tasks/<TASK-ID>/contract.md`. Note anything else as a follow-up.
 - Boundaries: `docs/ARCHITECTURE.md`, enforced by `scripts/harness/check_architecture.py`.
-- Before claiming a task is done, run the `harness-evaluator` subagent and fix its findings.
+- Before claiming a task is done, run the `harness-evaluate` skill in a separate context (a
+  subagent or a fresh session) and fix its findings.
 - Report failures with the real output. Never weaken a check to make it pass.
 
-**End of every session**: `/harness-handoff` (add `--share` to hand over, `--close` to finish).
+**End of every session**: use the `harness-handoff` skill (`--share` to hand over, `--close` to finish).
+
+The harness skills live in `.agents/skills/` (mirrored for agents that read another folder). In
+agents with slash commands, invoke them as `/harness-start`, `/harness-handoff`,
+`/harness-cleanup` and `/harness-evaluate`.
 
 Base branch: `<base branch>`. Branch naming: `<convention>`.

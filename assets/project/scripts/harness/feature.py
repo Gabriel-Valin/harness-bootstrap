@@ -5,8 +5,14 @@ Task state lives in .harness/tasks/<TASK-ID>/ (gitignored). The active task of a
 id stored in .harness/current, or the HARNESS_TASK environment variable.
 
 Every item is a triple: an observable behavior, an exact verification command, and a state.
-States: not_started, active, blocked, passing. Only this tool changes state; the guard hook
-blocks hand edits of status, evidence and history.
+States: not_started, active, blocked, passing. Only this tool changes state.
+
+Integrity does not depend on any agent harness: every save stores a seal (a hash over each item's
+id, verification, status, evidence, history and blocked_reason, plus the removed list). Every
+command checks it, so a hand edit of state makes the tool refuse to work until `recover` demotes
+every passing item and the items are verified again. Evidence also records the hash of its log.
+Behavior text and dependencies stay editable by hand. Optional harness hooks (for example
+harness-guard.py) can block hand edits earlier, but they are a convenience, not the guarantee.
 
 Commands:
   init TASK [--title T]          create the task folder from harness/templates and make it current
@@ -21,11 +27,15 @@ Commands:
   unblock ID                     return a blocked item to not_started
   reopen ID --reason R           move a passing item back to active (regression found)
   remove ID --reason R           drop an item from scope (only after the human agrees)
+  set-verify ID --verify CMD --reason R   amend an item's verification command
+  check-log FILE [--require-tests]        reject zero-test or skipped-test output
+  recover --reason R             reseal after a change outside this tool; demotes passing items
   validate                       check the file for consistency
 """
 
 import argparse
 import datetime
+import hashlib
 import json
 import os
 import re
@@ -38,6 +48,8 @@ STATES = ("not_started", "active", "blocked", "passing")
 TASK_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
 ITEM_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,31}$")
 TAIL_LINES = 40
+SEAL_VERSION = "v1"
+SEALED_ITEM_KEYS = ("id", "verification", "status", "evidence", "history", "blocked_reason")
 NO_TESTS_RE = re.compile(
     r"No test files found|No tests? found|No test found in suite"
     r"|^\s*(?:Test Files|Tests)\s+no tests|\b0 tests? (?:passed|ran|run)\b|\bRan 0 tests?\b",
@@ -47,14 +59,16 @@ SKIPPED_RE = re.compile(
     r"^\s*(?:Tests|Test Files)\s+(?:\d+ \w+ \| )*[1-9]\d* (?:skipped|todo) \(\d+\)"
     r"|^Tests?:\s+(?:\d+ \w+, )*[1-9]\d* (?:skipped|todo)\b"
     r"|^=+ (?:\d+ \w+, )*[1-9]\d* skipped(?:, \d+ \w+)* in [\d.]+s =+$"
-    r"|^\s+[1-9]\d* (?:skipped|todo)$",
+    r"|^\s+[1-9]\d* (?:skipped|todo)$"
+    r"|^OK \([^\n]*\b(?:skipped|expected failures)=[1-9]\d*[^\n]*\)$",
     re.IGNORECASE | re.MULTILINE,
 )
 POSITIVE_RE = re.compile(
     r"^\s*Tests\s+(?:\d+ \w+ \| )*\d+ passed\b"
     r"|^Tests?:\s+(?:\d+ \w+, )*\d+ passed\b"
     r"|^=+ .*\b\d+ passed\b"
-    r"|^\s+\d+ passed \(",
+    r"|^\s+\d+ passed \("
+    r"|^Ran [1-9]\d* tests? in [^\n]+\n\s*\nOK\b",
     re.IGNORECASE | re.MULTILINE,
 )
 
@@ -67,6 +81,48 @@ def proof_gap(text, require_positive=False):
     if require_positive and not POSITIVE_RE.search(text):
         return "reports no passing tests"
     return None
+
+
+def compute_seal(data):
+    payload = {
+        "items": [
+            {key: item.get(key) for key in SEALED_ITEM_KEYS}
+            for item in data.get("items", [])
+            if isinstance(item, dict)
+        ],
+        "removed": data.get("removed", []),
+    }
+    canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    return SEAL_VERSION + ":" + hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def pristine(data):
+    if data.get("removed"):
+        return False
+    for item in data.get("items", []):
+        if item.get("status", "not_started") != "not_started":
+            return False
+        if item.get("evidence") or item.get("history") or item.get("blocked_reason"):
+            return False
+    return True
+
+
+def seal_problem(data):
+    """Why the stored seal does not vouch for this state, or None when it does."""
+    seal = data.get("seal")
+    if seal is None:
+        return None if pristine(data) else "the feature list has state but no seal"
+    if seal != compute_seal(data):
+        return "the feature list was changed outside feature.py"
+    return None
+
+
+def file_sha256(path):
+    digest = hashlib.sha256()
+    with open(path, "rb") as fh:
+        for chunk in iter(lambda: fh.read(65536), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 def die(what, why=None, fix=None, code=1):
@@ -112,7 +168,7 @@ def current_task(required=True):
         die(
             "no active task in this worktree",
             "task state is per worktree and none was started here",
-            "run /harness-start <TASK-ID>, or: python3 scripts/harness/feature.py init <TASK-ID> --title \"...\"",
+            "use the harness-start skill, or: python3 scripts/harness/feature.py init <TASK-ID> --title \"...\"",
         )
     return task
 
@@ -125,7 +181,7 @@ def list_path(task):
     return os.path.join(task_dir(task), "feature_list.json")
 
 
-def load(task):
+def load(task, check_seal=True):
     path = list_path(task)
     if not os.path.isfile(path):
         die(
@@ -143,11 +199,22 @@ def load(task):
             "fix the JSON syntax; do not change status, evidence or history by hand",
         )
     data.setdefault("items", [])
+    problem = seal_problem(data) if check_seal else None
+    if problem:
+        die(
+            problem + ": " + rel(path),
+            "status, evidence, history, verification and removals change only through feature.py, "
+            "so a passing item can always be traced to a real verification run",
+            "if the edit was a mistake, undo it. Otherwise ask the human, then run: python3 "
+            "scripts/harness/feature.py recover --reason \"...\" (passing items go back to "
+            "not_started and must be verified again)",
+        )
     return data
 
 
 def save(task, data):
     path = list_path(task)
+    data["seal"] = compute_seal(data)
     fd, tmp = tempfile.mkstemp(dir=os.path.dirname(path), prefix=".feature_list.", suffix=".tmp")
     with os.fdopen(fd, "w", encoding="utf-8") as fh:
         json.dump(data, fh, indent=2, ensure_ascii=False)
@@ -255,7 +322,7 @@ def cmd_status(args):
         % (counts["passing"], len(items), counts["active"], counts["blocked"], counts["not_started"])
     )
     if not items:
-        print("  (no items yet: derive them from the task with /harness-start)")
+        print("  (no items yet: derive them from the task with the harness-start skill)")
     for item in items:
         line = "  [%-11s] %-10s %s" % (item.get("status"), item.get("id"), item.get("behavior", ""))
         if item.get("status") == "blocked" and item.get("blocked_reason"):
@@ -306,7 +373,7 @@ def cmd_next(args):
             print("%s: %s" % (item["id"], item.get("behavior", "")))
             return
     if data["items"] and all(i.get("status") == "passing" for i in data["items"]):
-        print("All items passing. Run /harness-handoff to close the session cleanly.")
+        print("All items passing. Use the harness-handoff skill to close the session cleanly.")
     else:
         print("No item can start: the rest are blocked or wait on dependencies.")
         sys.exit(1)
@@ -392,6 +459,7 @@ def cmd_verify(args):
             "command": command,
             "exit_code": 0,
             "log": rel(log_path),
+            "log_sha256": file_sha256(log_path),
             "commit": git("rev-parse", "--short", "HEAD") or "unknown",
             "working_tree_dirty": dirty,
             "at": now(),
@@ -530,12 +598,50 @@ def problems(data):
             found.append("%s: missing behavior" % iid)
         if not (item.get("verification") or "").strip():
             found.append("%s: missing verification command" % iid)
-        if item.get("status") == "passing" and not item.get("evidence"):
+        evidence = item.get("evidence")
+        if item.get("status") == "passing" and not evidence:
             found.append("%s: passing without evidence" % iid)
+        if item.get("status") == "passing" and isinstance(evidence, dict):
+            found.extend("%s: %s" % (iid, gap) for gap in evidence_gaps(evidence))
         for dep in item.get("depends_on", []):
             if dep not in ids:
                 found.append("%s: unknown dependency %s" % (iid, dep))
     return found
+
+
+def evidence_gaps(evidence):
+    log = evidence.get("log")
+    if not log:
+        return ["evidence has no log"]
+    path = os.path.join(ROOT, log)
+    if not os.path.isfile(path):
+        return ["evidence log is missing: " + log]
+    if evidence.get("log_sha256") and evidence["log_sha256"] != file_sha256(path):
+        return ["evidence log was changed after the run: " + log]
+    return []
+
+
+def cmd_recover(args):
+    task = current_task()
+    data = load(task, check_seal=False)
+    problem = seal_problem(data)
+    if not problem:
+        print("the seal is intact; nothing to recover")
+        return
+    demoted = []
+    for item in data["items"]:
+        if item.get("status") == "passing":
+            transition(item, "not_started", "recovered: " + args.reason)
+            item["evidence"] = None
+            demoted.append(item.get("id"))
+    data.setdefault("recoveries", []).append(
+        {"at": now(), "problem": problem, "reason": args.reason, "demoted": demoted}
+    )
+    save(task, data)
+    print("recovered: resealed %s (%s)" % (rel(list_path(task)), args.reason))
+    if demoted:
+        print("demoted to not_started, verify again: " + ", ".join(demoted))
+    print("check the rest of the state with: python3 scripts/harness/feature.py validate")
 
 
 def cmd_validate(args):
@@ -604,6 +710,10 @@ def main():
     p.add_argument("--verify", required=True)
     p.add_argument("--reason", required=True)
     p.set_defaults(func=cmd_set_verify)
+
+    p = sub.add_parser("recover")
+    p.add_argument("--reason", required=True)
+    p.set_defaults(func=cmd_recover)
 
     sub.add_parser("validate").set_defaults(func=cmd_validate)
 

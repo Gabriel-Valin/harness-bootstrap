@@ -123,7 +123,7 @@ else
   handoff_mtime="$(python3 -c 'import os,sys; print(int(os.path.getmtime(sys.argv[1])))' "$handoff")"
   if [ "$handoff_mtime" -lt "$last_commit" ]; then
     echo "  STALE: handoff.md is older than the latest commit"
-    echo "  FIX: update it with /harness-handoff before ending the session."
+    echo "  FIX: update it with the harness-handoff skill before ending the session."
     issues=$((issues + 1))
   else
     echo "  OK"

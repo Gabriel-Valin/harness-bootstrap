@@ -25,7 +25,7 @@ if [ -z "$task" ] && [ -f .harness/current ]; then
 fi
 
 if [ -z "$task" ]; then
-  echo "No harness task is active in this worktree. To begin work on a task, run /harness-start <TASK-ID>."
+  echo "No harness task is active in this worktree. To begin work on a task, use the harness-start skill with a <TASK-ID>."
 else
   python3 scripts/harness/feature.py status 2>&1 | head -n 40
   handoff=".harness/tasks/$task/handoff.md"
