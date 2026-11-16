@@ -1,14 +1,21 @@
 # Agent harness
 
-This folder, `scripts/harness/` and the `harness-*` skills under `.claude/` make the repository
-workable by coding agents across sessions, worktrees and people. Read this once; agents read the
-entry file (`CLAUDE.md` / `AGENTS.md`), which links here.
+This folder, `scripts/harness/` and the `harness-*` skills under `.agents/skills/` make the
+repository workable by coding agents across sessions, worktrees and people, whichever agent each
+person uses. Read this once; agents read the entry file (`AGENTS.md`, or a pointer to it such as
+`CLAUDE.md`), which links here.
+
+The skills are written once, in `.agents/skills/`. Agents that read another folder (Claude Code:
+`.claude/skills/`, Devin: `.devin/skills/`, and so on) get mirrors of it, normally symlinks. Edit
+only `.agents/skills/`; `init.sh` reports a mirror that is broken or drifted. Below, "use the
+`harness-start` skill" means asking your agent for it by name, or `/harness-start` in agents with
+slash commands.
 
 ## Two kinds of files
 
 | | Where | In git? | Who changes it |
 |---|---|---|---|
-| **Contract**: rules, docs, scripts, checklists, templates | `harness/`, `scripts/harness/`, `.claude/`, `docs/` | yes | anyone, through a PR |
+| **Contract**: rules, docs, scripts, checklists, templates | `harness/`, `scripts/harness/`, `.agents/skills/` and mirrors, agent adapters, `docs/` | yes | anyone, through a PR |
 | **Task state**: feature list, contract, progress, handoff, logs | `.harness/tasks/<TASK-ID>/` | **no** (gitignored) | the person and agent working on that task |
 
 Task state is personal and short-lived, so it stays out of git: it would conflict between
@@ -19,17 +26,15 @@ Anything that must survive goes somewhere durable before the task ends (see "Clo
 
 ### Start a task
 
-One task = one branch = one worktree. With Claude Code:
+One task = one branch = one worktree:
 
 ```bash
-claude --worktree <TASK-ID>          # isolated checkout under .claude/worktrees/<TASK-ID>
+git worktree add ../<repo>-<TASK-ID> -b <branch>   # any agent
+claude --worktree <TASK-ID>                         # Claude Code: isolated checkout under .claude/worktrees/
 ```
 
-Then, inside the session:
-
-```
-/harness-start <TASK-ID> <link or description of the task>
-```
+Then, inside an agent session in that worktree, use the `harness-start` skill with the task id and
+a link or description of the task (`/harness-start <TASK-ID> <link>` in agents with slash commands).
 
 It initializes `.harness/tasks/<TASK-ID>/`, writes the contract (scope, out of scope, done
 criteria), turns the done criteria into items with exact verification commands, records a red
@@ -50,19 +55,17 @@ Without worktrees, use a normal branch; the state folder is still per checkout.
 
 ### End a session
 
-```
-/harness-handoff
-```
-
-Runs verification and the cleanup scan, appends to `progress.md`, rewrites `handoff.md`, and walks
-the clean-state checklist. Resume later with `claude --worktree <TASK-ID> --resume`; the
-session-start hook prints the task state.
+Use the `harness-handoff` skill. It runs verification and the cleanup scan, appends to
+`progress.md`, rewrites `handoff.md`, and walks the clean-state checklist. To resume later, open a
+session in the same worktree and run `bash scripts/harness/init.sh`, which prints the task state
+and points at the handoff (in Claude Code, `claude --worktree <TASK-ID> --resume`; its
+session-start hook prints the state for you).
 
 ### Hand a task to someone else
 
-`/harness-handoff --share` pushes the branch (after asking) and publishes the handoff where the
+The `harness-handoff` skill with `--share` pushes the branch (after asking) and publishes the handoff where the
 team can see it: the PR (draft is fine) or the issue tracker. The next person creates their own
-worktree on that branch and runs `/harness-start <TASK-ID>`, which rebuilds local state from the
+worktree on that branch and uses the `harness-start` skill with the task id, which rebuilds local state from the
 shared handoff, the git log and the diff.
 
 ### Closing a task
@@ -87,7 +90,7 @@ reruns the verification, reads the diff against the contract and scores it with
 
 ### Periodically (for example weekly)
 
-`/harness-cleanup` on the base branch: full verification, cleanup and architecture scans,
+The `harness-cleanup` skill on the base branch: full verification, cleanup and architecture scans,
 quality-document update, promotion of repeated review comments into checks, and a proposal for
 harness components that no longer pull their weight.
 

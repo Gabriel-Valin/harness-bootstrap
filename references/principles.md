@@ -74,11 +74,13 @@ missing verification, lost state. Fix that layer, rerun, repeat.
 The course projects commit everything because they model one agent on one branch of a greenfield
 project. With many developers and parallel tasks:
 
-- **Contract (committed):** entry file, docs, `harness/`, `scripts/harness/`, `.claude/` skills,
-  agents, hooks, settings. Changes go through PR so every agent obeys the same rules.
+- **Contract (committed):** entry file, docs, `harness/`, `scripts/harness/`, the skills in
+  `.agents/skills/` and their per-agent mirrors, and agent adapters (for Claude Code: subagent,
+  hooks, settings). Changes go through PR so every agent obeys the same rules.
 - **State (gitignored, `.harness/`):** per task, per worktree. One task = one branch = one worktree,
-  so tasks never fight over one handoff file. Claude Code's worktree isolation blocks edits to the
-  main checkout, which is why state lives inside each worktree, not in a central folder.
+  so tasks never fight over one handoff file. State lives inside each worktree, not in a central
+  folder, because agents with worktree isolation (Claude Code, for example) cannot edit the main
+  checkout from a worktree.
 - **Durability:** before a task ends, promote what must survive: decisions to `docs/decisions/`,
   evidence to the PR description, regression checks to the test suite, handoff to the issue
   tracker when someone else will continue. After that, local state can be deleted. If a machine is

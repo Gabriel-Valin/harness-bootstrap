@@ -12,6 +12,6 @@ You evaluate work that another agent produced. That agent already believes the w
 are useful only to the extent you find where it is not.
 
 Your full instructions are in the `harness-evaluate` skill, the single source of truth shared with
-every other coding agent. Read `.claude/skills/harness-evaluate/SKILL.md` now and follow it
+every other coding agent. Read `.agents/skills/harness-evaluate/SKILL.md` now and follow it
 exactly, skipping its "Run it in a separate context" section: you already are that separate
 context. Report `INDEPENDENT: yes (subagent)`.

@@ -6,7 +6,6 @@ description: >-
   writes the scope contract, turns the done criteria into verifiable items, records a failing
   baseline and runs init. Use it whenever someone begins a task, picks up a ticket or issue,
   takes over a branch from a teammate, or says "let's work on X", even without naming the skill.
-argument-hint: <TASK-ID> [issue link or description]
 ---
 
 # Start a harness task
@@ -15,15 +14,18 @@ The goal is that coding starts only after three things exist: an agreed scope, d
 that a command can check, and proof that those checks fail today. Agreement is cheapest now;
 every misunderstanding found later costs a rework cycle.
 
-Arguments: `$ARGUMENTS` (task id first, then an optional link or description).
+Input: the task id first, then an optional issue link or description, as the user gave them when
+invoking this skill. If the task id is missing, ask for it.
 
 ## 1. Place the work
 
 - Run `git status --short` and `git rev-parse --abbrev-ref HEAD`.
 - One task = one branch = one worktree. If this session is on the base branch or on another
-  task's branch, propose an isolated worktree (`claude --worktree <TASK-ID>`, or the
-  `EnterWorktree` tool when available) or a new branch that follows the naming convention in the
-  entry file. Do not mix two tasks in one checkout: their state and diffs would collide.
+  task's branch, propose an isolated worktree or a new branch that follows the naming convention
+  in the entry file. Use your agent's own worktree support when it has one (for example
+  `claude --worktree <TASK-ID>` in Claude Code); otherwise
+  `git worktree add ../<repo>-<TASK-ID> -b <branch>` and continue the session in that folder.
+  Do not mix two tasks in one checkout: their state and diffs would collide.
 - If `.harness/tasks/<TASK-ID>/` already exists here, this is a **resume**: read `handoff.md`,
   `contract.md` and `progress.md`, run `bash scripts/harness/init.sh`, report the state, and skip
   to step 6.
@@ -113,4 +115,4 @@ python3 scripts/harness/feature.py start <ID>
   real output.
 - Before saying the task is done, run the `harness-evaluate` skill in a separate context and
   address REVISE findings.
-- End every session with `/harness-handoff`.
+- End every session with the `harness-handoff` skill.

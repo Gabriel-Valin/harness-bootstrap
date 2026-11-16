@@ -41,7 +41,8 @@ explain it to the user or to adapt it to an unusual repo).
 | Docs | `docs/ARCHITECTURE.md`, `PRODUCT.md`, `RELIABILITY.md`, `docs/decisions/` | yes | Knowledge the agent cannot infer from code |
 | Contract | `harness/` (config, rules, checklist, rubric, quality doc, templates, README) | yes | Same rules for everyone, changed only by PR |
 | Verification | `scripts/harness/` | yes | `init.sh`, `verify.sh`, `feature.py`, `check_architecture.py`, `cleanup-scan.sh` |
-| Lifecycle | `.claude/skills/harness-*`, plus optional per-agent adapters (`.claude/agents/`, `.claude/hooks/`) | yes | Start, hand off, clean up, evaluate; adapters add subagents and hooks where an agent supports them |
+| Lifecycle | `.agents/skills/harness-*`, mirrored for agents that read another folder | yes | Start, hand off, clean up, evaluate |
+| Adapters | Per agent, for example `.claude/agents/`, `.claude/hooks/` for Claude Code | yes | Optional extras: subagent, hooks |
 | Task state | `.harness/tasks/<TASK-ID>/` | **no** | Feature list, contract, progress, handoff, run logs for one task |
 
 Task state is local because it changes every session and belongs to one person's branch.
@@ -99,13 +100,22 @@ Do not ask about things with a conventional default; pick it and mention it in t
 ### 5. Copy the scaffold
 
 ```bash
-bash <this skill's directory>/scripts/install.sh <repo-root>
+bash <this skill's directory>/scripts/install.sh <repo-root> --agents <ids>
 ```
 
-The script copies `assets/project/` into the repo, **never overwrites** an existing file, marks
-scripts executable, and prints `CREATED` / `SKIPPED` per file. Use `--dry-run` first if the repo
-already has harness pieces. For every `SKIPPED` file, read the existing one and merge the missing
-ideas into it by hand instead of forcing the template.
+`--agents` takes the team's agents from step 4 as comma-separated ids, the same ids the
+`npx skills` CLI uses (`claude-code`, `codex`, `cursor`, `github-copilot`, `gemini-cli`,
+`opencode`, `pi`, `devin`, `windsurf`, `kiro-cli`, ...; `--help` lists them).
+
+The script copies `assets/project/` into the repo, including the lifecycle skills in
+`.agents/skills/`, which most agents read directly. For agents that read another folder
+(`claude-code`, `devin`, `windsurf`, `kiro-cli`) it adds relative symlinks to those skills, and
+for agents with an adapter in `assets/adapters/<id>/` it copies the adapter files. Pass `--copy`
+for copies instead of symlinks when the team has Windows checkouts without symlink support;
+`init.sh` then reports copies that drift. The script **never overwrites** an existing path,
+marks scripts executable, and prints `CREATED` / `LINKED` / `SKIPPED` per path. Use `--dry-run`
+first if the repo already has harness pieces. For every `SKIPPED` path, read the existing file and
+merge the missing ideas into it by hand instead of forcing the template.
 
 ### 6. Fill in the project specifics
 
@@ -159,13 +169,14 @@ guessing; agents change which files they read.
 
 - **`.gitignore`**: append the lines from `assets/snippets/gitignore.txt` that are missing.
 - **Claude Code only, `.claude/settings.json`**: merge the hooks from
-  `assets/snippets/settings-hooks.json`. Read the existing file, append to existing
+  `assets/adapters/claude-code/settings-hooks.json`. Read the existing file, append to existing
   `hooks.SessionStart` / `hooks.PreToolUse` arrays rather than replacing them, and keep the JSON
-  valid. Skip this if the team does not use Claude Code or declined hooks. The harness does not
-  depend on hooks: `feature.py` seals task state and refuses to work after a hand edit, and the
-  entry file tells every agent to run `init.sh` at session start.
-- **`.worktreeinclude`**: if the project needs gitignored files such as `.env` to run, list them so
-  every new worktree gets a copy.
+  valid. If the team declined hooks, skip this and delete the `.claude/hooks/` the adapter copied.
+  The harness does not depend on hooks: `feature.py` seals task state and refuses to work after a
+  hand edit, and the entry file tells every agent to run `init.sh` at session start.
+- **Claude Code only, `.worktreeinclude`**: if the project needs gitignored files such as `.env`
+  to run, list them so every worktree Claude Code creates gets a copy. For plain
+  `git worktree add`, mention those files in `harness/README.md` so people copy them.
 
 ### 9. Prove it once
 

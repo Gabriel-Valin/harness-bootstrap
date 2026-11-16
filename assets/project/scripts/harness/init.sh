@@ -19,7 +19,9 @@ for f in harness/config.sh harness/architecture-rules.json harness/clean-state-c
          harness/evaluator-rubric.md harness/templates/feature_list.json \
          harness/templates/handoff.md harness/templates/progress.md harness/templates/contract.md \
          scripts/harness/verify.sh scripts/harness/feature.py scripts/harness/check_architecture.py \
-         scripts/harness/cleanup-scan.sh; do
+         scripts/harness/cleanup-scan.sh .agents/skills/harness-start/SKILL.md \
+         .agents/skills/harness-handoff/SKILL.md .agents/skills/harness-cleanup/SKILL.md \
+         .agents/skills/harness-evaluate/SKILL.md; do
   if [ -f "$f" ]; then
     echo "  OK       $f"
   else
@@ -30,6 +32,33 @@ done
 if [ "$missing" -eq 1 ]; then
   echo "ERROR: harness files are missing."
   echo "FIX:   restore them from the base branch (git checkout <base> -- <file>) or rerun harness-bootstrap."
+  exit 1
+fi
+
+# Agents that do not read .agents/skills/ get mirrors (symlinks or copies). A mirror that broke
+# or drifted would give that agent different instructions than everyone else.
+for dir in .claude/skills .devin/skills .windsurf/skills .kiro/skills; do
+  for canonical in .agents/skills/harness-*/; do
+    name="$(basename "$canonical")"
+    mirror="$dir/$name"
+    if [ -L "$mirror" ] && [ ! -e "$mirror" ]; then
+      echo "  BROKEN   $mirror (symlink target is missing)"
+      echo "  FIX:     recreate it: ln -sfn ../../.agents/skills/$name $mirror"
+      missing=1
+    elif [ -f "$mirror" ]; then
+      echo "  BROKEN   $mirror (a symlink checked out as a plain file)"
+      echo "  FIX:     enable symlinks (git config core.symlinks true, then check the path out again),"
+      echo "           or replace it with a copy: rm $mirror && cp -R .agents/skills/$name $mirror"
+      missing=1
+    elif [ -d "$mirror" ] && [ ! -L "$mirror" ] && ! diff -rq "$canonical" "$mirror" >/dev/null 2>&1; then
+      echo "  DRIFT    $mirror differs from .agents/skills/$name"
+      echo "  FIX:     edit .agents/skills/$name only, then copy it over: rm -r $mirror && cp -R .agents/skills/$name $mirror"
+      missing=1
+    fi
+  done
+done
+if [ "$missing" -eq 1 ]; then
+  echo "ERROR: some agents would read missing or outdated harness skills."
   exit 1
 fi
 

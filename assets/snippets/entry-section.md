@@ -25,7 +25,8 @@ Work here goes through the harness. Details: `harness/README.md`.
 
 **End of every session**: use the `harness-handoff` skill (`--share` to hand over, `--close` to finish).
 
-Skills are in `.claude/skills/`; in agents with slash commands, invoke them as `/harness-start`,
-`/harness-handoff`, `/harness-cleanup` and `/harness-evaluate`.
+The harness skills live in `.agents/skills/` (mirrored for agents that read another folder). In
+agents with slash commands, invoke them as `/harness-start`, `/harness-handoff`,
+`/harness-cleanup` and `/harness-evaluate`.
 
 Base branch: `<base branch>`. Branch naming: `<convention>`.

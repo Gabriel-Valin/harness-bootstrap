@@ -6,14 +6,15 @@ description: >-
   and optionally share the handoff with a teammate or close the task. Use it whenever a session
   is ending, context is getting long, someone says "wrap up", "pause", "hand this over", "I'll
   continue tomorrow", or before switching to another task, even without naming the skill.
-argument-hint: "[--share | --close]"
 ---
 
 # Hand off a harness task
 
 The next session (yours tomorrow, a teammate's, or a fresh context after compaction) starts with
 no memory of this one. Everything it needs must be in files, and the repo must be in a state
-where it can start coding immediately. Arguments: `$ARGUMENTS`.
+where it can start coding immediately. Input: optionally `--share` (hand the task to someone
+else, step 6) or `--close` (finish the task, step 7), as the user gave them when invoking this
+skill; words like "hand this over" or "we are done" mean the same.
 
 Report honestly throughout. A red check reported with its real output is a good handoff; a green
 claim without evidence is a bad one.
