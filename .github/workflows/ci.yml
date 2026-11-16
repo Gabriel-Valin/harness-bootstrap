@@ -43,4 +43,5 @@ jobs:
         working-directory: harness-bootstrap
         run: |
           npx -y skills@latest add "$PWD" --list 2>&1 | tee skills.log
-          grep -q "Found 1 skill" skills.log
+          # The CLI colors its output even without a TTY; strip ANSI codes before matching.
+          sed 's/\x1b\[[0-9;]*[A-Za-z]//g' skills.log | grep -q "Found 1 skill"
