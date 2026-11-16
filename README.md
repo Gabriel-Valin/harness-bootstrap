@@ -10,13 +10,13 @@ Gemini CLI, OpenCode, Pi, Devin, Windsurf, Kiro and others.
 ## Install
 
 ```bash
-npx skills add Gabriel-Valin/harness-bootstrap
+npx skills add Gabriel-Valin/harness-bootstrap -g
 ```
 
 The [`skills` CLI](https://github.com/vercel-labs/skills) detects your agents and installs the skill
-where each one reads it. Useful flags: `-g` installs for your user instead of the current project,
-`-a <agent>` picks agents, and `@<tag>` pins a version
-(`npx skills add Gabriel-Valin/harness-bootstrap@v1.0.0`).
+where each one reads it. `-g` installs it for your user, which fits a skill you run once per
+repository; leave it out to install into the current project only. `-a <agent>` picks agents, and
+`@<tag>` pins a version (`npx skills add Gabriel-Valin/harness-bootstrap@v1.0.0 -g`).
 
 Then, in a repository, ask your agent to **set up the agent harness** (or invoke
 `/harness-bootstrap` in agents with slash commands).

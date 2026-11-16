@@ -38,8 +38,10 @@ fi
 # Agents that do not read .agents/skills/ get mirrors (symlinks or copies). A mirror that broke
 # or drifted would give that agent different instructions than everyone else.
 for dir in .claude/skills .devin/skills .windsurf/skills .kiro/skills; do
-  for canonical in .agents/skills/harness-*/; do
-    name="$(basename "$canonical")"
+  # Name the lifecycle skills explicitly: .agents/skills/ may also hold other skills, such as
+  # harness-bootstrap itself when it was installed per project.
+  for name in harness-start harness-handoff harness-cleanup harness-evaluate; do
+    canonical=".agents/skills/$name/"
     mirror="$dir/$name"
     if [ -L "$mirror" ] && [ ! -e "$mirror" ]; then
       echo "  BROKEN   $mirror (symlink target is missing)"

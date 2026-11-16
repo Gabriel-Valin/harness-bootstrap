@@ -194,6 +194,9 @@ Tell the user, briefly:
 - The commands per layer and where each came from
 - Every `TODO(confirm)` and every assumption you made
 - The init/verification result, including failures
+- If this skill itself was installed into the repository (`.agents/skills/harness-bootstrap/` or
+  another agent's skills folder, plus `skills-lock.json`), say so: the team does not need it after
+  the bootstrap, and it can be removed or kept for re-running later. Do not remove it yourself.
 - Next step: review and commit the bootstrap on a branch, then start a task with the
   `harness-start` skill (in agents with slash commands, `/harness-start <TASK-ID>`)
 
