@@ -1,10 +1,15 @@
 #!/usr/bin/env python3
-"""harness-guard.py - PreToolUse hook that keeps feature-list state in the verifier's hands.
+"""harness-guard.py - optional PreToolUse hook that keeps feature-list state in the verifier's hands.
+
+The guarantee itself lives in scripts/harness/feature.py (a seal checked by every command), so the
+harness works in any coding agent. This hook only stops a hand edit before it happens, which saves
+the agent a recover-and-reverify cycle. It reads Claude Code's hook payload (tool_name, tool_input).
 
 Blocks, for .harness/**/feature_list.json:
   - Edit / Write / MultiEdit that change status, evidence or history of any item
   - any change to an item that is already passing
   - removing items (use: feature.py remove ID --reason ...)
+  - changes to the top-level seal or removed list
   - new items that do not start as not_started without evidence
   - Bash commands that write to the file directly (sed -i, redirection, tee, mv, cp)
 
@@ -18,7 +23,8 @@ import re
 import sys
 
 GUARDED = ("status", "evidence", "history", "blocked_reason")
-FIX = "use python3 scripts/harness/feature.py (start, verify, block, unblock, reopen, remove)."
+GUARDED_TOP = ("seal", "removed", "recoveries")
+FIX = "use python3 scripts/harness/feature.py (start, verify, block, unblock, reopen, remove, set-verify)."
 
 
 def deny(reason):
@@ -70,6 +76,9 @@ def items_by_id(data):
 
 
 def compare(before, after):
+    for key in GUARDED_TOP:
+        if before.get(key) != after.get(key):
+            deny("'%s' would change by hand" % key)
     old_items, new_items = items_by_id(before), items_by_id(after)
     for item_id, old in old_items.items():
         new = new_items.get(item_id)
@@ -122,6 +131,9 @@ def main():
         deny("the result would not be valid JSON (%s)" % exc)
 
     if not current.strip():
+        for key in GUARDED_TOP:
+            if after.get(key):
+                deny("a new feature list cannot carry '%s'" % key)
         for item_id, item in items_by_id(after).items():
             check_new_item(item_id, item)
         return

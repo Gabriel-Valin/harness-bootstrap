@@ -17,7 +17,12 @@ for arg in "$@"; do
   case "$arg" in
     --dry-run) DRY_RUN=1 ;;
     -h|--help) usage ;;
-    *) [ -z "$TARGET" ] && TARGET="$arg" || usage ;;
+    *)
+      if [ -n "$TARGET" ]; then
+        usage
+      fi
+      TARGET="$arg"
+      ;;
   esac
 done
 [ -n "$TARGET" ] || usage
@@ -59,7 +64,7 @@ while IFS= read -r -d '' file; do
       *.sh|*.py) chmod +x "$dest" ;;
     esac
   fi
-done < <(find "$SRC" -type f -print0 | sort -z)
+done < <(find "$SRC" -type f -not -path '*/__pycache__/*' -not -name '.DS_Store' -print0 | sort -z)
 
 echo ""
 if [ "$DRY_RUN" -eq 1 ]; then

@@ -111,5 +111,6 @@ python3 scripts/harness/feature.py start <ID>
 - No refactoring until the current item's behavior is verified.
 - Run `bash scripts/harness/verify.sh` before claiming anything works; report failures with the
   real output.
-- Before saying the task is done, run the `harness-evaluator` subagent and address REVISE findings.
+- Before saying the task is done, run the `harness-evaluate` skill in a separate context and
+  address REVISE findings.
 - End every session with `/harness-handoff`.

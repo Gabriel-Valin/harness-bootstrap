@@ -38,7 +38,7 @@ missing verification, lost state. Fix that layer, rerun, repeat.
 | `progress.md` | Losing the "why" of decisions across sessions |
 | `handoff.md` | Next session (or next person) starting cold |
 | `clean-state-checklist.md` | Sessions ending with red builds, debug code, stale state |
-| `evaluator-rubric.md` + evaluator subagent | Self-evaluation bias: the same model that wrote the code grades it generously |
+| `evaluator-rubric.md` + `harness-evaluate` skill (run in a subagent or fresh session) | Self-evaluation bias: the same model that wrote the code grades it generously |
 | `quality-document.md` | Not knowing which modules are degrading |
 | `cleanup-scan.sh` + `/harness-cleanup` | Entropy: agents copy existing mess, so mess compounds |
 
@@ -48,8 +48,12 @@ missing verification, lost state. Fix that layer, rerun, repeat.
   threshold none finish. `feature.py start` refuses a second active item.
 - **The triple.** Every item has an observable behavior, an exact verification command, and a
   state (`not_started`, `active`, `blocked`, `passing`). Missing any one makes it unusable.
-- **Pass-state gating.** Only the verifier moves an item to `passing`, by running its command. The
-  guard hook blocks hand edits of status and evidence. Evidence is command output, not prose.
+- **Pass-state gating.** Only the verifier moves an item to `passing`, by running its command.
+  `feature.py` seals the state on every save and refuses to work after a hand edit, so the rule
+  holds in any coding agent; hooks only block the edit earlier where an agent supports them.
+  Evidence is command output (a log whose hash is recorded), not prose. The seal is tamper
+  evidence, not security: an agent determined to forge it can, which is why the evaluator reruns
+  every verification instead of trusting stored evidence.
 - **Three verification layers.** Static (lint, types), runtime (tests, the app starts), system
   (end-to-end user flow). Stop at the first failing layer. Cross-component changes need the E2E
   layer; component boundary defects are invisible to unit tests by design.

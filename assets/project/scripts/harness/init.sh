@@ -59,14 +59,16 @@ echo "[4/4] Task state"
 mkdir -p .harness
 task="$(harness_task_id)"
 if [ -n "$task" ]; then
-  python3 scripts/harness/feature.py status
-  python3 scripts/harness/feature.py validate || true
+  # status already explains a broken seal; validate would only repeat it.
+  if python3 scripts/harness/feature.py status; then
+    python3 scripts/harness/feature.py validate || true
+  fi
   if [ -f ".harness/tasks/$task/handoff.md" ]; then
     echo ""
     echo "Read next: .harness/tasks/$task/handoff.md"
   fi
 else
-  echo "  No active task in this worktree. Start one with /harness-start <TASK-ID>"
+  echo "  No active task in this worktree. Start one with the harness-start skill"
   echo "  (or: python3 scripts/harness/feature.py init <TASK-ID> --title \"...\")."
 fi
 

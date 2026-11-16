@@ -42,7 +42,10 @@ Without worktrees, use a normal branch; the state folder is still per checkout.
 
 - One item at a time: `python3 scripts/harness/feature.py next`, then `start <ID>`.
 - An item becomes `passing` only through `python3 scripts/harness/feature.py verify <ID>`, which
-  runs its command and stores the log as evidence. A hook blocks hand edits of status.
+  runs its command and stores the log as evidence. Every `feature.py` command checks a seal over
+  the state and refuses to work after a hand edit of status, evidence or history; `feature.py
+  recover` reseals and sends passing items back to be verified again. An optional hook blocks the
+  hand edit earlier in agents that support hooks.
 - Full check at any time: `bash scripts/harness/verify.sh` (static, tests, smoke, e2e).
 
 ### End a session
@@ -77,7 +80,8 @@ tracker.
 
 ### Before asking for review
 
-Ask Claude to run the `harness-evaluator` subagent. It is a separate, skeptical checker that
+Run the `harness-evaluate` skill in a separate context: a subagent where your agent has them (in
+Claude Code, the `harness-evaluator` subagent), otherwise a fresh session. It is a skeptical checker that
 reruns the verification, reads the diff against the contract and scores it with
 `harness/evaluator-rubric.md`. Fix REVISE findings before opening the PR.
 
@@ -91,7 +95,8 @@ harness components that no longer pull their weight.
 
 - `harness/config.sh`: commands for each verification layer, base branch, debug patterns.
 - `harness/architecture-rules.json`: executable boundaries.
-- `.claude/settings.json`: the session-start and guard hooks.
+- `.claude/settings.json`: optional session-start and guard hooks for Claude Code. The harness
+  works without them; they only surface state earlier and block hand edits before they happen.
 - `.worktreeinclude`: gitignored files (such as `.env`) copied into each new worktree.
 
 ### Architecture rules
@@ -107,7 +112,7 @@ enforces the boundary.
 |---|---|
 | `bash scripts/harness/init.sh` | Setup + quick verification + task state. Start of every session. |
 | `bash scripts/harness/verify.sh [--quick]` | Layered verification; exit 3 means a required layer is not configured. |
-| `python3 scripts/harness/feature.py <cmd>` | Task state: `init`, `status`, `add`, `next`, `start`, `verify`, `block`, `unblock`, `reopen`, `remove`, `validate`. |
+| `python3 scripts/harness/feature.py <cmd>` | Task state: `init`, `status`, `add`, `next`, `start`, `verify`, `block`, `unblock`, `reopen`, `remove`, `set-verify`, `recover`, `validate`. |
 | `python3 scripts/harness/check_architecture.py` | Boundary rules. |
 | `bash scripts/harness/cleanup-scan.sh` | Debug code, conflict markers, stray files, stale state. |
 
