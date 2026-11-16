@@ -52,7 +52,8 @@ SEAL_VERSION = "v1"
 SEALED_ITEM_KEYS = ("id", "verification", "status", "evidence", "history", "blocked_reason")
 NO_TESTS_RE = re.compile(
     r"No test files found|No tests? found|No test found in suite"
-    r"|^\s*(?:Test Files|Tests)\s+no tests|\b0 tests? (?:passed|ran|run)\b|\bRan 0 tests?\b",
+    r"|^\s*(?:Test Files|Tests)\s+no tests|\b0 tests? (?:passed|ran|run)\b|\bRan 0 tests?\b"
+    r"|^[ℹ#] tests 0\s*$",
     re.IGNORECASE | re.MULTILINE,
 )
 SKIPPED_RE = re.compile(
@@ -60,7 +61,8 @@ SKIPPED_RE = re.compile(
     r"|^Tests?:\s+(?:\d+ \w+, )*[1-9]\d* (?:skipped|todo)\b"
     r"|^=+ (?:\d+ \w+, )*[1-9]\d* skipped(?:, \d+ \w+)* in [\d.]+s =+$"
     r"|^\s+[1-9]\d* (?:skipped|todo)$"
-    r"|^OK \([^\n]*\b(?:skipped|expected failures)=[1-9]\d*[^\n]*\)$",
+    r"|^OK \([^\n]*\b(?:skipped|expected failures)=[1-9]\d*[^\n]*\)$"
+    r"|^[ℹ#] (?:skipped|todo) [1-9]\d*\s*$",
     re.IGNORECASE | re.MULTILINE,
 )
 POSITIVE_RE = re.compile(
@@ -68,7 +70,8 @@ POSITIVE_RE = re.compile(
     r"|^Tests?:\s+(?:\d+ \w+, )*\d+ passed\b"
     r"|^=+ .*\b\d+ passed\b"
     r"|^\s+\d+ passed \("
-    r"|^Ran [1-9]\d* tests? in [^\n]+\n\s*\nOK\b",
+    r"|^Ran [1-9]\d* tests? in [^\n]+\n\s*\nOK\b"
+    r"|^[ℹ#] pass [1-9]\d*\s*$",
     re.IGNORECASE | re.MULTILINE,
 )
 
@@ -546,6 +549,12 @@ def cmd_remove(args):
 def cmd_check_log(args):
     if args.file == "-":
         text = sys.stdin.read()
+    elif not os.path.isfile(args.file):
+        die(
+            "log file not found: " + args.file,
+            fix="pass the path of an existing log, or - to read the output from stdin",
+            code=2,
+        )
     else:
         with open(args.file, encoding="utf-8", errors="replace") as fh:
             text = fh.read()

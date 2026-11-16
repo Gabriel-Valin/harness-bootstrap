@@ -51,6 +51,23 @@ class ProofGapTest(unittest.TestCase):
             "reports no passing tests",
         )
 
+    def test_node_test_runner_summaries(self):
+        spec = "ℹ tests 7\nℹ suites 1\nℹ pass 7\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\n"
+        tap = "1..7\n# tests 7\n# suites 1\n# pass 7\n# fail 0\n# skipped 0\n# todo 0\n"
+        for text in [spec, tap]:
+            with self.subTest(text=text):
+                self.assertIsNone(self.gap(text, require_positive=True))
+                self.assertEqual(
+                    self.gap(text.replace("skipped 0", "skipped 1")), "skipped some tests"
+                )
+                self.assertEqual(self.gap(text.replace("todo 0", "todo 2")), "skipped some tests")
+                self.assertEqual(
+                    self.gap(text.replace("pass 7", "pass 0"), require_positive=True),
+                    "reports no passing tests",
+                )
+        self.assertEqual(self.gap("ℹ tests 0\nℹ pass 0\n"), "ran no tests")
+        self.assertEqual(self.gap("# tests 0\n# pass 0\n"), "ran no tests")
+
     def test_zero_test_runs_are_gaps(self):
         for text in [
             "No test files found, exiting with code 0",
