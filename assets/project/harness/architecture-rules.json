@@ -1,0 +1,13 @@
+{
+  "exclude": [
+    ".git/*",
+    "node_modules/*",
+    "*/node_modules/*",
+    "dist/*",
+    "build/*",
+    "vendor/*",
+    "*.min.js",
+    "*.lock"
+  ],
+  "rules": []
+}

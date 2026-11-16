@@ -1,0 +1,8 @@
+{
+  "task": "{{TASK_ID}}",
+  "title": "{{TITLE}}",
+  "created_at": "{{DATE}}",
+  "branch": "{{BRANCH}}",
+  "base_commit": "{{BASE_COMMIT}}",
+  "items": []
+}

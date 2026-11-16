@@ -1,0 +1,9 @@
+# Agent harness: per-task local state (see harness/README.md)
+.harness/
+# Claude Code worktrees
+.claude/worktrees/
+# Python bytecode from harness scripts
+__pycache__/
+# Personal, uncommitted agent instructions
+CLAUDE.local.md
+.claude/settings.local.json
