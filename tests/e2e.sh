@@ -110,6 +110,37 @@ printf 'import unittest\n\n\nclass T(unittest.TestCase):\n    def test_ok(self):
   | python3 "$SKILL_DIR/assets/project/scripts/harness/feature.py" check-log --require-tests - >/dev/null \
   || fail "a passing unittest run was not recognized"
 
+echo "== the same command in two layers fails verify.sh"
+repo="$(new_repo duplicate)"
+bash "$SKILL_DIR/scripts/install.sh" "$repo" >/dev/null
+cat >>"$repo/harness/config.sh" <<'EOF'
+HARNESS_TEST_CMDS='python3 -c "print(\"Tests  1 passed (1)\")"'
+HARNESS_E2E_CMDS='  python3 -c "print(\"Tests  1 passed (1)\")"  '
+EOF
+if (cd "$repo" && bash scripts/harness/verify.sh >"$WORK/duplicate.log" 2>&1); then
+  fail "verify.sh passed with the same command in tests and e2e"
+fi
+grep -q "tests and e2e:" "$WORK/duplicate.log" || fail "duplicate layers not reported"
+sed -i.bak '$d' "$repo/harness/config.sh"
+(cd "$repo" && bash scripts/harness/verify.sh >"$WORK/single.log" 2>&1) \
+  || { cat "$WORK/single.log"; fail "verify.sh failed without duplicates"; }
+
+echo "== a vendored harness-bootstrap skill is left out of the cleanup scans"
+repo="$(new_repo vendored)"
+bash "$SKILL_DIR/scripts/install.sh" "$repo" >/dev/null
+git -C "$repo" add -A
+git -C "$repo" -c user.name=e2e -c user.email=e2e@example.invalid commit -q -m harness
+mkdir -p "$repo/.agents/skills/harness-bootstrap"
+cp -R "$SKILL_DIR/assets" "$SKILL_DIR/SKILL.md" "$repo/.agents/skills/harness-bootstrap/"
+(cd "$repo" && bash scripts/harness/cleanup-scan.sh >"$WORK/vendored.log" 2>&1) || true
+if grep -q "skills/harness-bootstrap/" "$WORK/vendored.log"; then
+  cat "$WORK/vendored.log"
+  fail "cleanup-scan reported files of the vendored bootstrap skill"
+fi
+grep -q "INFO       the harness-bootstrap skill is installed" "$WORK/vendored.log" \
+  || fail "vendored skill not mentioned"
+grep -q "RESULT: CLEAN" "$WORK/vendored.log" || { cat "$WORK/vendored.log"; fail "scan not clean"; }
+
 echo "== bad input is rejected"
 if bash "$SKILL_DIR/scripts/install.sh" "$repo" --agents not-an-agent >/dev/null 2>&1; then
   fail "unknown agent accepted"

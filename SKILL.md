@@ -130,6 +130,9 @@ Everything the scaffold cannot know is yours to write, grounded in what you read
 1. **`harness/config.sh`**: one command per line for each layer (setup, static, test, smoke, e2e),
    the base branch, and the debug patterns for the stack. Leave a layer empty only if it truly
    does not exist; `verify.sh` reports empty required layers as UNVERIFIED instead of passing.
+   Never fill a layer with a command another layer already runs (for example the integration
+   tests as "e2e"): every layer must add evidence the others do not. See
+   `references/discovery.md`.
 2. **`harness/architecture-rules.json`**: one rule per boundary, following
    `references/architecture-rules.md`. Every rule needs `why` and `fix` written for an agent,
    because the error message is the feedback loop.

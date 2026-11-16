@@ -61,6 +61,29 @@ layer() {
   exit 1
 }
 
+# Each layer must add evidence the others do not. The same command in two layers (for example
+# the integration tests listed again as e2e) would report a layer as proven while proving nothing
+# new, so it is a configuration error, not a pass.
+duplicates="$(
+  for pair in "static:${HARNESS_STATIC_CMDS:-}" "tests:${HARNESS_TEST_CMDS:-}" \
+              "smoke:${HARNESS_SMOKE_CMDS:-}" "e2e:${HARNESS_E2E_CMDS:-}"; do
+    name="${pair%%:*}"
+    printf '%s\n' "${pair#*:}" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' |
+      grep -v '^$' | sed "s/^/$name	/"
+  done | awk -F '\t' '
+    { if ($2 in seen && seen[$2] != $1) print "  " seen[$2] " and " $1 ": " $2; else seen[$2] = $1 }'
+)"
+if [ -n "$duplicates" ]; then
+  echo ""
+  echo "ERROR: the same command is configured in two verification layers:" | tee -a "$LOG"
+  printf '%s\n' "$duplicates" | tee -a "$LOG"
+  echo "WHY:   a layer that reruns another layer's command adds no evidence, so reporting it as" | tee -a "$LOG"
+  echo "       passed would overstate what was verified." | tee -a "$LOG"
+  echo "FIX:   in harness/config.sh, keep the command in the layer it belongs to and leave the other" | tee -a "$LOG"
+  echo "       layer empty (it is then reported as not configured), or give it a real command of its own." | tee -a "$LOG"
+  exit 1
+fi
+
 layer "static" "${HARNESS_STATIC_CMDS:-}" 1 \
   "static checks catch the cheapest defects; nothing else is trustworthy until they pass."
 layer "tests" "${HARNESS_TEST_CMDS:-}" 1 \
